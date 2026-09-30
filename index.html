@@ -1447,6 +1447,134 @@ h1 {
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 .random-badge.visible { display: block; }
+
+/* ════════════════════════════════════
+   ROOM  (host popup + viewer page)
+════════════════════════════════════ */
+.room-qr {
+  width: min(240px, 64vw);
+  aspect-ratio: 1;
+  margin: 0 auto 12px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #3a2418;
+  font-size: 13px;
+  line-height: 1.7;
+  text-align: center;
+}
+.room-qr svg { width: 100%; height: 100%; display: block; }
+.room-qr .sw-cancel { width: auto; padding: 8px 18px; color: #b4532f; border-color: #d9774f80; opacity: 1; }
+.room-code {
+  text-align: center;
+  font-family: 'Fraunces','Noto Serif TC', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: var(--parchment);
+  min-height: 1em;
+}
+.room-url {
+  text-align: center;
+  font-size: 11px;
+  color: var(--accent);
+  opacity: .7;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+  margin: 2px 0 10px;
+}
+.room-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--parchment);
+  opacity: .75;
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.room-count {
+  text-align: center;
+  font-size: 13px;
+  color: var(--accent-bright);
+  margin-bottom: 14px;
+  min-height: 1.4em;
+}
+.room-actions { display: flex; gap: 8px; margin-bottom: 8px; }
+.room-actions .sw-cancel { flex: 1; opacity: .85; }
+
+/* viewer page */
+.viewer-wrap {
+  display: none;
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 420px;
+  padding: 4px var(--side) clamp(30px,8vw,50px);
+  flex-direction: column;
+  align-items: center;
+}
+body.viewer .viewer-wrap { display: flex; }
+body.viewer #setupWrap,
+body.viewer #gameWrap { display: none !important; }
+body.viewer .rev-footer { display: none; }
+body.viewer .rev-body { padding-bottom: 22px; }
+
+.room-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--bg2);
+  border: 1px solid #d9774f30;
+  font-size: 12px;
+  color: var(--parchment);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #e0a93a; flex-shrink: 0; }
+.room-status.connecting .status-dot { animation: blink 1s ease-in-out infinite; }
+.room-status.live .status-dot { background: #3ccf7a; box-shadow: 0 0 8px #3ccf7a; }
+.room-status.lost .status-dot,
+.room-status.closed .status-dot { background: #e0556a; }
+@keyframes blink { 50% { opacity: .25; } }
+
+.viewer-meta {
+  font-size: 12px;
+  color: var(--accent);
+  opacity: .8;
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  min-height: 1em;
+  text-align: center;
+}
+.viewer-panel {
+  width: 100%;
+  text-align: center;
+  color: var(--parchment);
+  font-size: 14px;
+  line-height: 1.8;
+  margin-bottom: 14px;
+}
+.viewer-panel:empty { display: none; }
+.vp-box {
+  background: var(--bg2);
+  border: 1px solid #d9774f30;
+  border-radius: 14px;
+  padding: 22px 18px;
+}
+.vp-icon  { font-size: 44px; display: block; margin-bottom: 8px; line-height: 1.2; }
+.vp-title { font-size: 12px; letter-spacing: 3px; color: var(--accent); margin-bottom: 4px; }
+.vp-sub   { font-size: 24px; font-weight: 700; letter-spacing: 6px; margin-bottom: 8px; }
+.vp-desc  { white-space: pre-line; opacity: .8; }
+.viewer-card { width: 100%; display: flex; justify-content: center; transition: opacity .3s; }
+.viewer-card[hidden] { display: none; }
+.viewer-card.dim { opacity: .5; }
 </style>
 </head>
 <body>
@@ -1462,6 +1590,17 @@ h1 {
   <h1>好好認識</h1>
   <div class="subtitle">Meet &amp; Talk · 認識彼此的對話卡</div>
   <div class="header-line"></div>
+</div>
+
+<!-- ── VIEWER (opened from the room QR code: ?room=CODE) ── -->
+<div class="viewer-wrap" id="viewerWrap">
+  <div class="room-status connecting" id="viewerStatus">
+    <span class="status-dot"></span><span id="viewerStatusText">連線中…</span>
+  </div>
+  <div class="viewer-meta" id="viewerMeta"></div>
+  <div class="chips" id="viewerChips"></div>
+  <div class="viewer-panel" id="viewerPanel"></div>
+  <div class="viewer-card" id="viewerCardSlot" hidden></div>
 </div>
 
 <!-- ── SETUP ── -->
@@ -1524,6 +1663,7 @@ h1 {
   <div class="game-toolbar">
     <button class="tool-btn" id="stageSwitchBtn" onclick="openStageSwitcher()">🗂 換關卡</button>
     <button class="tool-btn" id="randomBtn" onclick="toggleRandomMode()">🎲 隨機</button>
+    <button class="tool-btn" id="roomBtn" onclick="openRoom()">📡 開房間</button>
   </div>
 
   <!-- Player chips -->
@@ -1614,6 +1754,23 @@ h1 {
       </button>
     </div>
     <button class="sw-cancel" onclick="closeStageSwitcher()">取消</button>
+  </div>
+</div>
+
+<!-- ── ROOM POPUP (host) ── -->
+<div class="stage-sw-popup" id="roomPopup" onclick="closeRoomPopup(event)">
+  <div class="stage-sw-card">
+    <div class="sw-title">✦ 觀看房間 ✦</div>
+    <div class="room-qr" id="roomQr"></div>
+    <div class="room-code" id="roomCode"></div>
+    <div class="room-url" id="roomUrl"></div>
+    <div class="room-hint">請大家用手機相機掃描 QR code，<br>就能同步看到每一張抽出的卡。</div>
+    <div class="room-count" id="roomCount"></div>
+    <div class="room-actions">
+      <button class="sw-cancel" id="roomCopyBtn" onclick="copyRoomLink()">🔗 複製連結</button>
+      <button class="sw-cancel" onclick="closeRoom()">✕ 關閉房間</button>
+    </div>
+    <button class="sw-cancel" onclick="closeRoomPopup()">收起</button>
   </div>
 </div>
 
@@ -2035,6 +2192,8 @@ let stageDrawn = 0;         // how many drawn in this stage
 let stageTotal = 0;         // total cards in this stage
 let curCard = null, curTab = 'follow';
 let afterClose = null;      // one-shot callback when the card overlay closes
+let cardPlayer = 0;         // who drew the card currently / last shown
+let levelNext = 1, endingIdx = 0;
 
 // ════ SETUP ════
 function addPlayer(){
@@ -2161,6 +2320,7 @@ function updateCurrent(){
   document.getElementById('currName').textContent=p.name;
   document.getElementById('currEmoji').textContent=p.icon;
   document.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('active',i===curIdx));
+  roomSync();
 }
 
 // ════ DRAW ════
@@ -2181,21 +2341,31 @@ function stageOf(c){
   return STAGES.find(s=>s.key===c.type);
 }
 
+function cardStageIcon(c){
+  return randomMode ? (stageOf(c)?.icon||'🎲') : STAGES[stageIdx].icon;
+}
+
 function showCard(c){
+  cardPlayer=curIdx;
+  fillCard(c, players[curIdx]);
+  document.getElementById('overlay').style.display='flex';
+  requestAnimationFrame(()=>{ document.getElementById('revCard').scrollTop=0; });
+  roomSync();
+}
+
+// Render a card into the card element (shared by host overlay and viewer page)
+function fillCard(c, who){
   const m=TYPE_META[c.type];
-  const stageIcon = randomMode ? (stageOf(c)?.icon||'🎲') : STAGES[stageIdx].icon;
   document.getElementById('revNum').textContent=
-    `${stageIcon} ${players[curIdx].icon} ${players[curIdx].name}`;
+    `${cardStageIcon(c)} ${who.icon} ${who.name}`;
   const badge=document.getElementById('revBadge');
   badge.textContent=m.label; badge.className='rev-badge '+m.badge;
   document.getElementById('revBand').className='card-band '+m.band;
   document.getElementById('revEmoji').textContent=c.emoji;
   document.getElementById('revQ').innerHTML=c.q;
-  curTab='follow';
+  curCard=c; curTab='follow';
   renderInsight();
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
-  document.getElementById('overlay').style.display='flex';
-  requestAnimationFrame(()=>{ document.getElementById('revCard').scrollTop=0; });
 }
 
 function switchTab(tab,btn){
@@ -2267,12 +2437,14 @@ function showActionTransition(idx, callback){
 
 // ════ LEVEL SCREEN ════
 function showLevelScreen(nextStageIdx){
+  levelNext = nextStageIdx;
   const unlock = STAGES[nextStageIdx - 1].unlock;
   document.getElementById('lvlIcon').textContent = unlock.icon;
   document.getElementById('lvlTitle').textContent = unlock.title;
   document.getElementById('lvlSub').textContent = unlock.subtitle;
   document.getElementById('lvlDesc').textContent = unlock.desc;
   document.getElementById('levelOverlay').style.display='flex';
+  roomSync();
 }
 
 function startNextStage(){
@@ -2282,9 +2454,10 @@ function startNextStage(){
 
 // ════ ENDING ════
 function showEnding(){
-  const prompt = ENDING_PROMPTS[Math.floor(Math.random()*ENDING_PROMPTS.length)];
-  document.getElementById('endingPrompt').textContent = prompt;
+  endingIdx = Math.floor(Math.random()*ENDING_PROMPTS.length);
+  document.getElementById('endingPrompt').textContent = ENDING_PROMPTS[endingIdx];
   document.getElementById('endingOverlay').style.display='flex';
+  roomSync();
 }
 
 // ════ RANDOM MODE ════
@@ -2311,6 +2484,7 @@ function toggleRandomMode(){
     randomDrawn = 0;
     document.getElementById('stageDesc').textContent = '所有關卡隨機混合抽出';
     updateRemainUI();
+    roomSync();
   } else {
     enterStage(stageIdx);
   }
@@ -2345,6 +2519,379 @@ function restartGame(){
   randomMode=false; randomDeck=[]; randomDrawn=0; randomTotal=0;
   afterClose=null;
   setRandomUI(false);
+  roomSync();
+}
+
+// ════ ROOM（房主開房間 → 觀眾掃 QR 同步看卡）════
+// WebRTC P2P via PeerJS: the host's browser sends each card straight to viewers.
+// PeerJS's free cloud server is used only to introduce the two sides.
+// Only card ids travel over the wire — viewers already have every card locally.
+// Libraries load on demand, so normal play still works offline.
+const LIBS = {
+  peer: { src:'https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js',
+          integrity:'sha384-x0YgkOr/3UOZP2CRDxGW9e0Q+2Qjyr3uJrm4xU32Y7ZCNAo7Cc7bjhrZMi/dwczu' },
+  qr:   { src:'https://cdn.jsdelivr.net/npm/qrcode-generator@2.0.4/dist/qrcode.js',
+          integrity:'sha384-e9EFD6BGC90bkW9aDV5xbbBfzwN7G8YImHao2lfLVKV/hPB0E0go+H3I64h7oHtA' }
+};
+const libLoads = {};
+function loadLib(name){
+  if(!libLoads[name]){
+    libLoads[name] = new Promise((resolve,reject)=>{
+      const el=document.createElement('script');
+      el.src=LIBS[name].src; el.integrity=LIBS[name].integrity; el.crossOrigin='anonymous';
+      el.onload=resolve;
+      el.onerror=()=>{ delete libLoads[name]; el.remove(); reject(new Error('load '+name)); };
+      document.head.appendChild(el);
+    });
+  }
+  return libLoads[name];
+}
+
+const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I/L
+const ROOM_KEY = 'mtc-room';
+function newRoomCode(){
+  const bytes=crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, b=>ROOM_ALPHABET[b % ROOM_ALPHABET.length]).join('');
+}
+const peerIdOf = code => 'meettalk-' + code;
+const roomUrlOf = code => location.href.split(/[?#]/)[0] + '?room=' + code;
+function store(fn){ try{ return fn(sessionStorage); }catch(e){ return null; } }
+
+// Keep the screen on while hosting/viewing (a sleeping phone drops the connection)
+let wakeLock = null;
+async function keepAwake(){
+  try{
+    if(!wakeLock && 'wakeLock' in navigator && document.visibilityState==='visible'){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>{ wakeLock=null; });
+    }
+  }catch(e){}
+}
+function releaseAwake(){ try{ wakeLock?.release(); }catch(e){} wakeLock=null; }
+
+// ── HOST ──
+let room = null;   // { code, peer, conns:Set, ready, ping, error }
+
+function hostView(){
+  const shown = id => document.getElementById(id).style.display==='flex';
+  if(shown('endingOverlay')) return 'ending';
+  if(shown('levelOverlay'))  return 'level';
+  if(shown('overlay'))       return 'card';
+  if(document.getElementById('gameWrap').style.display!=='flex') return 'setup';
+  return 'idle';
+}
+
+function roomState(){
+  return {
+    t:'state', view:hostView(),
+    players, curIdx, cardPlayer, stageIdx, random:randomMode,
+    drawn: randomMode ? randomDrawn : stageDrawn,
+    total: randomMode ? randomTotal : stageTotal,
+    cardId: curCard ? curCard.id : null,
+    levelNext, endingIdx
+  };
+}
+
+function roomBroadcast(msg){
+  if(!room) return;
+  room.conns.forEach(conn=>{ if(conn.open){ try{ conn.send(msg); }catch(e){} } });
+}
+function roomSync(){ if(room && room.conns.size) roomBroadcast(roomState()); }
+
+function openRoom(code){
+  if(!room) startRoom(code || newRoomCode());
+  showRoomPopup();
+}
+
+function startRoom(code, attempt=0){
+  stopRoomPeer();
+  room = { code, peer:null, conns:new Set(), ready:false, ping:null, error:null };
+  updateRoomUI();
+  Promise.all([loadLib('peer'), loadLib('qr')]).then(()=>{
+    if(!room || room.code!==code) return;
+    const peer = new Peer(peerIdOf(code));
+    room.peer = peer;
+    peer.on('open', ()=>{
+      if(room?.peer!==peer) return;
+      room.ready = true; room.error = null;
+      store(ss=>ss.setItem(ROOM_KEY, code));
+      keepAwake();
+      updateRoomUI();
+    });
+    peer.on('connection', conn=>{
+      conn.on('open', ()=>{
+        if(room?.peer!==peer){ conn.close(); return; }
+        room.conns.add(conn);
+        conn.send(roomState());
+        updateRoomUI();
+      });
+      const drop = ()=>{ if(room?.peer===peer){ room.conns.delete(conn); updateRoomUI(); } };
+      conn.on('close', drop);
+      conn.on('error', drop);
+    });
+    // Lost the signalling server (e.g. network blip): re-register the same id.
+    // Existing viewer connections keep working in the meantime.
+    peer.on('disconnected', ()=>{
+      if(room?.peer===peer && !peer.destroyed) setTimeout(()=>{ if(room?.peer===peer && !peer.destroyed) peer.reconnect(); }, 1500);
+    });
+    peer.on('error', err=>{
+      if(room?.peer!==peer) return;
+      if(err.type==='unavailable-id'){
+        // Usually our own previous session (page reload) still holding the id — retry, then give up on this code
+        const next = attempt < 3 ? code : newRoomCode();
+        setTimeout(()=>{ if(room?.code===code) startRoom(next, attempt < 3 ? attempt+1 : 0); }, 2000);
+        return;
+      }
+      if(room.ready) return;   // transient errors after the room is up are handled by 'disconnected'
+      room.error = err.type==='browser-incompatible' ? '這個瀏覽器不支援即時連線，請改用 Chrome 或 Safari。' : '連不上配對伺服器，請檢查網路後再試一次。';
+      updateRoomUI();
+    });
+    room.ping = setInterval(()=>roomBroadcast({t:'ping'}), 5000);
+  }).catch(()=>{
+    if(!room || room.code!==code) return;
+    room.error = '無法載入連線元件，請檢查網路後再試一次。';
+    updateRoomUI();
+  });
+}
+
+function stopRoomPeer(){
+  if(!room) return;
+  clearInterval(room.ping);
+  try{ room.peer?.destroy(); }catch(e){}
+}
+
+function retryRoom(){ if(room) startRoom(room.code); }
+
+function closeRoom(){
+  if(room){
+    roomBroadcast({t:'closed'});
+    const r = room;
+    setTimeout(()=>{ clearInterval(r.ping); try{ r.peer?.destroy(); }catch(e){} }, 300);  // let 'closed' flush
+  }
+  room = null;
+  store(ss=>ss.removeItem(ROOM_KEY));
+  releaseAwake();
+  updateRoomUI();
+  closeRoomPopup();
+}
+
+function showRoomPopup(){ document.getElementById('roomPopup').style.display='flex'; }
+function closeRoomPopup(e){
+  if(!e || e.target===document.getElementById('roomPopup')){
+    document.getElementById('roomPopup').style.display='none';
+  }
+}
+
+function qrSvg(text){
+  const qr = qrcode(0,'M'); qr.addData(text); qr.make();
+  const n = qr.getModuleCount(), q = 4;   // 4-module quiet zone
+  let d = '';
+  for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(qr.isDark(r,c)) d += `M${c} ${r}h1v1h-1z`;
+  return `<svg viewBox="${-q} ${-q} ${n+2*q} ${n+2*q}" shape-rendering="crispEdges" role="img" aria-label="房間 QR code">`
+       + `<rect x="${-q}" y="${-q}" width="${n+2*q}" height="${n+2*q}" fill="#fff"/><path d="${d}" fill="#15100e"/></svg>`;
+}
+
+function updateRoomUI(){
+  const btn = document.getElementById('roomBtn');
+  btn.classList.toggle('active', !!room);
+  btn.textContent = room ? `📡 房間 · ${room.conns.size}` : '📡 開房間';
+
+  const qrBox = document.getElementById('roomQr');
+  const code = document.getElementById('roomCode');
+  const url = document.getElementById('roomUrl');
+  const count = document.getElementById('roomCount');
+  if(!room){ qrBox.innerHTML=''; code.textContent=''; url.textContent=''; count.textContent=''; return; }
+  if(room.error){
+    qrBox.innerHTML = '';
+    const msg=document.createElement('div'); msg.textContent=room.error;
+    const retry=document.createElement('button'); retry.className='sw-cancel'; retry.textContent='↻ 再試一次'; retry.onclick=retryRoom;
+    qrBox.append(msg, retry);
+  } else if(!room.ready){
+    qrBox.textContent = '建立房間中…';
+  } else if(qrBox.dataset.code !== room.code || !qrBox.querySelector('svg')){
+    qrBox.innerHTML = qrSvg(roomUrlOf(room.code));
+  }
+  qrBox.dataset.code = room.ready && !room.error ? room.code : '';
+  code.textContent = room.code;
+  url.textContent = room.ready ? roomUrlOf(room.code) : '';
+  count.textContent = room.ready ? `👀 ${room.conns.size} 人正在觀看` : '';
+}
+
+function copyRoomLink(){
+  if(!room) return;
+  const btn = document.getElementById('roomCopyBtn');
+  const done = ok => { btn.textContent = ok ? '✓ 已複製' : '請長按上方連結複製'; setTimeout(()=>btn.textContent='🔗 複製連結', 1800); };
+  if(navigator.clipboard?.writeText) navigator.clipboard.writeText(roomUrlOf(room.code)).then(()=>done(true), ()=>done(false));
+  else done(false);
+}
+
+// ── VIEWER ──
+const viewerRoom = (new URLSearchParams(location.search).get('room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,8);
+let vPeer=null, vConn=null, vRetry=null, vLastMsg=0, vClosed=false, vShownCard=null;
+
+function setViewerStatus(kind, text){
+  const el=document.getElementById('viewerStatus');
+  el.className='room-status '+kind;
+  document.getElementById('viewerStatusText').textContent=text;
+}
+
+function initViewer(){
+  document.body.classList.add('viewer');
+  document.getElementById('viewerCardSlot').appendChild(document.querySelector('.card-scene'));
+  setViewerStatus('connecting', `正在連到房間 ${viewerRoom}…`);
+  loadLib('peer').then(viewerConnect).catch(()=>{
+    setViewerStatus('lost','無法載入連線元件，請檢查網路後重新整理');
+  });
+  setInterval(()=>{   // watchdog: host sends a ping every 5s
+    if(vClosed || !vConn) return;
+    if(Date.now()-vLastMsg > (vConn.open ? 15000 : 12000)){
+      setViewerStatus('lost','連線中斷，重新連線中…');
+      viewerConnect();
+    }
+  }, 4000);
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState!=='visible' || vClosed) return;
+    keepAwake();
+    if(!vConn || !vConn.open) viewerConnect();
+  });
+}
+
+function viewerConnect(){
+  clearTimeout(vRetry);
+  if(vClosed) return;
+  if(!vPeer || vPeer.destroyed){
+    vPeer = new Peer();
+    vPeer.on('open', openViewerConn);
+    vPeer.on('disconnected', ()=>{ if(!vPeer.destroyed) setTimeout(()=>{ if(!vPeer.destroyed && vPeer.disconnected) vPeer.reconnect(); }, 1500); });
+    vPeer.on('error', err=>{
+      if(err.type==='peer-unavailable') setViewerStatus('lost', `找不到房間 ${viewerRoom}，等待房主開啟…`);
+      else setViewerStatus('lost','連線中斷，重新連線中…');
+      scheduleViewerRetry();
+    });
+  } else if(vPeer.open){
+    openViewerConn();
+  } else if(vPeer.disconnected){
+    vPeer.reconnect();      // 'open' fires again → openViewerConn
+  }
+}
+
+function scheduleViewerRetry(){ clearTimeout(vRetry); vRetry=setTimeout(viewerConnect, 3000); }
+
+function openViewerConn(){
+  if(vClosed) return;
+  try{ vConn?.close(); }catch(e){}
+  const conn = vPeer.connect(peerIdOf(viewerRoom), {reliable:true});
+  vConn = conn; vLastMsg = Date.now();
+  conn.on('open', ()=>{ if(conn!==vConn) return; vLastMsg=Date.now(); setViewerStatus('live', `已連線 · 房間 ${viewerRoom}`); keepAwake(); });
+  conn.on('data', msg=>{ if(conn!==vConn) return; vLastMsg=Date.now(); applyRoomMessage(msg); });
+  const lost = ()=>{
+    if(conn!==vConn || vClosed) return;
+    // keep a more specific message (e.g. room not found) if one is already showing
+    if(document.getElementById('viewerStatus').classList.contains('live')) setViewerStatus('lost','連線中斷，重新連線中…');
+    scheduleViewerRetry();
+  };
+  conn.on('close', lost);
+  conn.on('error', lost);
+}
+
+function applyRoomMessage(msg){
+  if(!msg || typeof msg!=='object') return;
+  if(msg.t==='closed'){
+    vClosed=true; clearTimeout(vRetry);
+    setViewerStatus('closed','房主已關閉房間');
+    renderViewerPanel({icon:'👋', title:'房間已關閉', desc:'謝謝你一起參與！'});
+    showViewerCard(null);
+    try{ vPeer?.destroy(); }catch(e){}
+    releaseAwake();
+    return;
+  }
+  if(msg.t!=='state') return;
+
+  // Never trust the wire: clamp numbers, stringify names, look cards up locally
+  const idx = (v,n) => Number.isInteger(v) && v>=0 && v<n ? v : 0;
+  const num = v => Number.isInteger(v) && v>=0 && v<1000 ? v : 0;
+  players = (Array.isArray(msg.players) ? msg.players.slice(0,8) : []).map((p,i)=>({
+    name: String(p?.name ?? `玩家${i+1}`).slice(0,40),
+    icon: String(p?.icon ?? '✨').slice(0,8)
+  }));
+  stageIdx = idx(msg.stageIdx, STAGES.length);
+  randomMode = msg.random===true;
+  const view = String(msg.view);
+  const who = players[idx(msg.curIdx, players.length||1)];
+  const drewIdx = idx(msg.cardPlayer, players.length||1);
+  const card = [...CARDS, ...ACTION_TRANSITIONS].find(c=>c.id===msg.cardId) || null;
+
+  const meta = document.getElementById('viewerMeta');
+  meta.textContent = (view==='idle'||view==='card') && players.length
+    ? `${randomMode ? '🎲 隨機' : STAGES[stageIdx].icon+' '+STAGES[stageIdx].name} · 已聊 ${num(msg.drawn)} / ${num(msg.total)} 張`
+    : '';
+  renderViewerChips(view==='card' ? drewIdx : idx(msg.curIdx, players.length||1), view==='setup');
+
+  if(view==='card' && card){
+    renderViewerPanel(null);
+    showViewerCard(card, players[drewIdx], false);
+  } else if(view==='idle'){
+    renderViewerPanel({text: who ? `輪到 ${who.icon} ${who.name} 抽牌…` : '等待抽牌…'});
+    if(card) showViewerCard(card, players[drewIdx], true); else showViewerCard(null);
+  } else if(view==='level'){
+    const next = Math.min(Math.max(idx(msg.levelNext, STAGES.length),1), STAGES.length-1);
+    const u = STAGES[next-1].unlock;
+    renderViewerPanel({icon:u.icon, title:u.title, sub:u.subtitle, desc:u.desc});
+    showViewerCard(null);
+  } else if(view==='ending'){
+    renderViewerPanel({icon:'✦', sub:'謝謝你們', desc:'好好地聊了一場。\n\n'+ENDING_PROMPTS[idx(msg.endingIdx, ENDING_PROMPTS.length)]});
+    showViewerCard(null);
+  } else {
+    renderViewerPanel({icon:'☕', title:'已加入房間', desc:'房主正在準備遊戲，\n抽出的卡會同步出現在這裡。'});
+    showViewerCard(null);
+  }
+}
+
+function renderViewerChips(activeIdx, hide){
+  const c=document.getElementById('viewerChips'); c.innerHTML='';
+  if(hide) return;
+  players.forEach((p,i)=>{
+    const el=document.createElement('div');
+    el.className='chip'+(i===activeIdx?' active':'');
+    el.textContent=`${p.icon} ${p.name}`;
+    c.appendChild(el);
+  });
+}
+
+function renderViewerPanel(p){
+  const panel=document.getElementById('viewerPanel');
+  panel.innerHTML='';
+  if(!p) return;
+  if(p.text){ panel.textContent=p.text; return; }
+  const box=document.createElement('div'); box.className='vp-box';
+  const add=(cls,txt)=>{ if(!txt) return; const el=document.createElement('div'); el.className=cls; el.textContent=txt; box.appendChild(el); };
+  add('vp-icon',p.icon); add('vp-title',p.title); add('vp-sub',p.sub); add('vp-desc',p.desc);
+  panel.appendChild(box);
+}
+
+function showViewerCard(card, who, dim){
+  const slot=document.getElementById('viewerCardSlot');
+  if(!card){ slot.hidden=true; vShownCard=null; return; }
+  slot.hidden=false;
+  slot.classList.toggle('dim', !!dim);
+  const key = card.id+':'+(who?.name||'');
+  if(vShownCard===key) return;          // same card: keep the viewer's open tab
+  vShownCard=key;
+  fillCard(card, who || {icon:'', name:''});
+  const el=document.getElementById('revCard');
+  el.style.animation='none'; void el.offsetWidth; el.style.animation='';   // replay flip-in
+}
+
+// ── BOOT ──
+if(viewerRoom){
+  initViewer();
+} else {
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState==='visible' && room) keepAwake();
+  });
+  // Host reloaded the page: reopen the same room so viewers reconnect on their own
+  const saved = store(ss=>ss.getItem(ROOM_KEY));
+  if(saved && /^[A-Z0-9]{6}$/.test(saved)) startRoom(saved);
 }
 </script>
 </body>
